@@ -1,52 +1,151 @@
-
-pragma solidity ^0.4.24;
+pragma solidity ^0.8.17;
 
 // import { } from "@safe";
+import {IHats} from "@hats/interfaces/IHats.sol";
+
+/// @dev Hats.sol contract address. Same across all chains
+IHats constant HATS_PROTOCOL = IHats(0x3bc1A0Ad72417f2d411118085256fC53CBdDd137);
+string constant DEFAULT_HAT_IMAGE = "https://mir-s3-cdn-cf.behance.net/project_modules/fs/c5101e101776905.5f271cf878379.png"; // image src https://www.behance.net/gallery/101776905/Happy-Chromosomes/modules/586316835
 
 /**
  * @title Panspermia
- * @notice - Define the constants of life for all organisms
+ * @info - Define the constants of life for all organisms
  * @dev - Should be able to skip from any cycle to another one e.g.
  *        Inseminating -> Dying. Reproducing -> Incubating
  */
 enum LifeCycles {
     // birth cycles
-    Inseminating,
+    Inseminating, // alias - procriating
     Incubating,
     // main (healthy) cycles
-    Discovering,
+    Exploring,
     Growing,
     Reproducing,
     // death cycles
     Dying,
-    Recycling,
+    Recycling
 }
 
-// TODO these should all be Hats and MetaOrg defines eligibility for each
-// which could be # love staked or something else
-enum BioRoles {
-    Plasma,     // creates stability within org
-    StemCell,   // create new things within org - interconnections, new organelles, etc.
-    Membrane,   // separate external good vs bad things 
-    Enzyme,     // facilitate internal or external interactions
-    Antiphage,  // separate internal good vs bad things
-    Nucleus,    // control org(s) and their actions
+enum CellRoles {
+    Plasma,     // creates stability within org - ops, org dev, community
+    StemCell,   // create new things within org (interconnections, new cells, etc.) - product, design, engineering,
+    Membrane,   // separate external good vs bad things - strategy, security, legal,
+    Enzyme,     // facilitate internal or external interactions - marketing, growth, biz dev
+    Antiphage,  // separate internal good vs bad things - ops, strategy, org dev,
+    Neurons,    // control organisms thoughts and will to live - community, strategy, 
+    Autophage   // decompose org and distribute nutrients - finance, product, 
 }
 
-struct MetaOrgDNA {
-    // remove would just be hats and check that
-    // mapping(BioRoles => bool) roles; // how organelle can operate
-    mapping(LifeCycles => bool) supportingCycles; // when organelle can operate
-    mapping(address => uint256) loves; // cell -> staked
+enum Relations {
+    Sub,        // executive decision making over this MetaOrg
+    Peer,       // mutual cooperation rlationship
+    Parent,     // they have full control over us
+    Combatant,  // on or both of us are actively trying to destroy the other
+}
+
+struct CellDNA {
+     // cells integration process into the MetaOrg. Inseminating == no powers. Dying == voted out
+    LifeCycles currentCycle;
+     // 8 bit = Cycles - when cell can operate
+     // 8 bits = roles -  what cell can operate within us
+     // 4 bits = Relations - how we want to cooperate with them
+     // last 44 bits left unused
+    uint64 helix;
+    uint256 signal; // total amount of primaryResource signaled to this cell for activation
+}
+
+struct Resource {
+    /// @notice how valuable the resource is to MetaOrg existence
+    uint256 recommendedDailyDose;
+    /// @notice how many resources are currently provided to MetaOrg
+    uint256 currentDosage;
+}
+
+
+struct OrganismDNA {
+    LifeCycles currentCycle;
+    address primaryResource;
+    /// @notice contracts that manage MetaOrg at different phases in lifecycle
+    mapping(uint8 => address) souls;
+    /// @notice DNA helix that corresponds to hat with its permissions
+    /// @dev 0 is always top hat
+    mapping(uint64 => uint256) plasmaMembranes;
+    /// @notice services, subgroups, governots, etc. with privilegs to act on or on behalf of this MetaOrg
+    /// @dev MAY be non MetaOrg
+    mapping(address => CellDNA) cells;
+    /// @notice resources that MetaOrg needs to survive
+    mapping(address => Resource) requestedResources;
+
+
+    /*
+     Question: To let signalrsget their underlying tokens back or not? Major game theory
+        If yes, then assumes it doesnt belong to MetaOrg. We need to track how much they put in and how much they take out.
+        If no, then they need to decide if they're willing to lose their tokens to MetaOrgs survival. Could get back on decompose theoretically
+        Would mean we dont need either of these mappings. This MetaOrg will own those relationships and syngerizers gets stronger relationship with us.
+    */
+    /// @notice tokens staked to cells to do work. 
+    ///         Synergizer -> Subcell -> Amount
+    /// @dev 
+    mapping(address => mapping(address => uint256)) globs;
+    /// @notice tokens staked by homies to MetaOrgs to gain power, including this one.
+    ///         Synergizer -> PeerCell ->  Amount
+    /// @dev MUST be a MetaOrg. 
+    mapping(address => mapping(address => uint256)) blobs;
+}
+
+contract Organism {
+    OrganismDNA public self;
+}
+
+function activeInPhase(uint64 dna, uint8 currentCycle) pure returns(bool) {
+    // TODO: TEST! generated by AI
+    uint8 lifecycleBits = uint8(dna >> 56);
+    uint8 mask = uint8(1 << uint8(currentCycle));
+    return (lifecycleBits & mask) != 0;    
+}
+
+function hasRelation(uint64 dna, uint4 relationshipType) pure returns(bool) {
+    // TODO: TEST! generated by AI
+    uint4 relationBits = uint4(dna >> 48);
+    uint4 mask = uint4(1 << uint4(relationshipType));
+    return (relationBits & mask) != 0;    
 }
 
 /**
- * @title - 
  * @notice - deploys a new Safe smart account with MetaOrg configuration
  */
-function blobify(address parent) public pure returns(address) {
+function blobify(string calldata willToLive) returns(address, uint256) {
+    require(bytes(willToLive).length > 40); // must be sufficiently long, could be IPFS hash
+    address newCell = address(0); // TODO deploy smart account
+    // TODO setup default MetaOrg modules
+    
+    uint256 topHatId = HATS_PROTOCOL.mintTopHat(newCell, willToLive, DEFAULT_HAT_IMAGE);
+    return (address(0), topHatId);
+
+}
+
+/**
+ * @notice - deploys a new Safe smart account with MetaOrg configuration with a controlling parent
+ * @dev - basically blobify() with parental controls
+ */
+function blobifyWithParentalControls(address parent, uint256 parentHatId, string calldata willToLive) returns(address, uint256) {
+    require(bytes(willToLive).length > 40); // must be sufficiently long, could be IPFS hash
+    require(parent != address(0)); // must have parent
     // deploy smart account
     // setup default MetaOrg modules
     // if parent != 0, add modules for default parent org
-    return address(0);
+    
+    // parents always have admin controls until they die
+    uint256 hatId = HATS_PROTOCOL.createHat(
+        parentHatId,
+        willToLive,
+        100, // max supply aka total cells needed by parent org to run This Part Of Party
+        parent, // eligibility, decides who else can act as their cell in this role
+        parent, // toggle, who can end the party
+        false, // mutability. IMMUTABLE === IMMORTAL
+        DEFAULT_HAT_IMAGE
+    );
+
+    return (address(0), hatId);
 }
+

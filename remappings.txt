@@ -1,2 +1,4 @@
 ds-test/=lib/forge-std/lib/ds-test/src/
 forge-std/=lib/forge-std/src/
+@hats=lib/hats-protocol/src/
+@solady=lib/hats-protocol/lib/solady/src/
