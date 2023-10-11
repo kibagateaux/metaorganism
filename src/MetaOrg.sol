@@ -20,7 +20,7 @@ import {
     blobify,
     blobifyWithParentalControls,
     activeInPhase,
-    hasRelation,
+    hasRelation
 } from "./Panspermia.sol";
 
 
